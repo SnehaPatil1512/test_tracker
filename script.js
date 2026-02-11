@@ -143,10 +143,10 @@ async function handlePosition(position) {
 
   const newPoint = [lat, lng];
 
-  //if (position.coords.accuracy > modeSettings[trackingMode].accuracyLimit) { 
-   // console.log("Blocked by accuracy filter")
-   // return;
-  //}
+  if (position.coords.accuracy > modeSettings[trackingMode].accuracyLimit) { 
+   console.log("Blocked by accuracy filter")
+   return;
+  }
 
   if (!marker) {
     marker = L.marker(newPoint).addTo(map);
@@ -245,5 +245,6 @@ stopBtn.onclick = () => {
     watchId = null;
   }
 };
+
 
 
