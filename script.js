@@ -1,31 +1,29 @@
-// Mode Settings
-
 const modeSettings = {
   walk: {
     profile: "foot-walking",
     minMove: 15,
     routeDelay: 4000,
-    accuracyLimit: 30
+    accuracyLimit: 30,
+    animationDelay: 120
   },
-
   bike: {
     profile: "cycling-regular",
     minMove: 35,
     routeDelay: 2500,
-    accuracyLimit: 40
+    accuracyLimit: 40,
+    animationDelay: 60
   },
-
   car: {
     profile: "driving-car",
     minMove: 60,
     routeDelay: 2000,
-    accuracyLimit: 50
+    accuracyLimit: 50,
+    animationDelay: 40
   }
 };
 
-// Variables
+let trackingMode = "bike";
 
-let trackingMode = "bike"; 
 let watchId = null;
 let isTracking = false;
 let lastRouteTime = 0;
@@ -34,23 +32,17 @@ let marker = null;
 let lastPoint = null;
 let animationToken = 0;
 
+// =======================
 // DOM Elements
-
+// =======================
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const latEl = document.getElementById("lat");
 const lngEl = document.getElementById("lng");
-const modeSelect = document.getElementById("modeSelect");
 
-
-// modeSelect.onchange = () => {
-//   if (modeSettings[modeSelect.value]) {
-//     trackingMode = modeSelect.value;
-//   }
-// };
-
+// =======================
 // Leaflet Map Setup
-
+// =======================
 const map = L.map('map').setView([28.6139, 77.2090], 15);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -61,8 +53,10 @@ const polyline = L.polyline([], { color: "blue" }).addTo(map);
 
 
 const ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ5MDQ0MzIwZTY4NTQxNWFiMWUxM2QwYWI3ZjQ1NTMzIiwiaCI6Im11cm11cjY0In0="; 
-// Helper Functions
 
+// =======================
+// Helper Functions
+// =======================
 function metersBetween(a, b) {
   const R = 6371000;
   const dLat = (b[0] - a[0]) * Math.PI / 180;
@@ -92,10 +86,7 @@ async function getRoute(from, to) {
       }
     );
     const data = await res.json();
-    if (!data.features) {
-      console.log("ORS route failed", data);
-      return null;
-    }
+    if (!data.features) return null;
     return data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
   } catch (e) {
     console.log("Route error", e);
@@ -119,10 +110,10 @@ function animateMarker(route) {
     latEl.textContent = point[0].toFixed(6);
     lngEl.textContent = point[1].toFixed(6);
 
-    map.panTo(point, { animate: true }); 
+    map.panTo(point, { animate: true });
 
     i++;
-    setTimeout(step, 60); 
+    setTimeout(step, modeSettings[trackingMode].animationDelay);
   }
 
   step();
@@ -132,13 +123,13 @@ async function handlePosition(position) {
   if (!isTracking) return;
 
   const mode = modeSettings[trackingMode];
-  if (!mode) return; 
+  if (!mode) return;
 
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
   const newPoint = [lat, lng];
 
-  if (position.coords.accuracy > modeSettings[trackingMode].accuracyLimit) {
+  if (position.coords.accuracy > mode.accuracyLimit) {
     console.log("Blocked by accuracy filter:", position.coords.accuracy);
     return;
   }
@@ -153,9 +144,8 @@ async function handlePosition(position) {
     return;
   }
 
-  if (metersBetween(lastPoint, newPoint) < modeSettings[trackingMode].minMove) return;
-
-  if (Date.now() - lastRouteTime < modeSettings[trackingMode].routeDelay) return;
+  if (metersBetween(lastPoint, newPoint) < mode.minMove) return;
+  if (Date.now() - lastRouteTime < mode.routeDelay) return;
 
   lastRouteTime = Date.now();
 
@@ -178,10 +168,10 @@ async function handlePosition(position) {
   lngEl.textContent = newPoint[1].toFixed(6);
 }
 
+// =======================
 // Start Tracking
-
+// =======================
 startBtn.onclick = () => {
-  
   lastRouteTime = 0;
 
   if (!navigator.geolocation) {
@@ -198,11 +188,8 @@ startBtn.onclick = () => {
       polyline.setLatLngs([]);
       lastPoint = currentPoint;
 
-      if (!marker) {
-        marker = L.marker(currentPoint).addTo(map);
-      } else {
-        marker.setLatLng(currentPoint);
-      }
+      if (!marker) marker = L.marker(currentPoint).addTo(map);
+      else marker.setLatLng(currentPoint);
 
       map.setView(currentPoint, 17);
       polyline.addLatLng(currentPoint);
@@ -227,8 +214,9 @@ startBtn.onclick = () => {
   );
 };
 
+// =======================
 // Stop Tracking
-
+// =======================
 stopBtn.onclick = () => {
   isTracking = false;
   animationToken++;
@@ -238,6 +226,4 @@ stopBtn.onclick = () => {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
   }
-  trackingMode = "";
-  startBtn.disabled = true;
 };
