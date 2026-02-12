@@ -131,10 +131,10 @@ async function handlePosition(position) {
   const lng = position.coords.longitude;
   const newPoint = [lat, lng];
 
-  // if (position.coords.accuracy > mode.accuracyLimit) {
-  //   console.log("Blocked by accuracy filter:", position.coords.accuracy);
-  //   return;
-  // }
+  if (position.coords.accuracy > mode.accuracyLimit) {
+    console.log("Blocked by accuracy filter:", position.coords.accuracy);
+    return;
+  }
 
   if (!marker) {
     marker = L.marker(newPoint).addTo(map);
@@ -286,3 +286,4 @@ downloadBtn.onclick = () => {
 
 
 stopBtn.disabled = true;
+
