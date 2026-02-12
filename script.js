@@ -1,24 +1,24 @@
 const modeSettings = {
   walk: {
     profile: "foot-walking",
-    minMove: 15,
-    routeDelay: 4000,
-    accuracyLimit: 30,
-    animationDelay: 120
+    minMove: 5,
+    routeDelay: 1500,
+    accuracyLimit: 50,
+    animationDelay: 80
   },
   bike: {
     profile: "cycling-regular",
-    minMove: 35,
-    routeDelay: 2500,
-    accuracyLimit: 40,
-    animationDelay: 60
+    minMove: 15,
+    routeDelay: 1200,
+    accuracyLimit: 60,
+    animationDelay: 50
   },
   car: {
     profile: "driving-car",
-    minMove: 60,
-    routeDelay: 2000,
-    accuracyLimit: 50,
-    animationDelay: 40
+    minMove: 30,
+    routeDelay: 1000,
+    accuracyLimit: 80,
+    animationDelay: 30
   }
 };
 
@@ -32,31 +32,33 @@ let marker = null;
 let lastPoint = null;
 let animationToken = 0;
 
-// =======================
-// DOM Elements
-// =======================
+
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
+const downloadBtn = document.getElementById("downloadBtn");
 const latEl = document.getElementById("lat");
 const lngEl = document.getElementById("lng");
 
-// =======================
-// Leaflet Map Setup
-// =======================
+
 const map = L.map('map').setView([28.6139, 77.2090], 15);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19
 }).addTo(map);
 
-const polyline = L.polyline([], { color: "blue" }).addTo(map);
+const canvasRenderer = L.canvas();
+
+const polyline = L.polyline([], {
+  color: "blue",
+  weight: 4,
+  opacity: 0.8,
+  renderer: canvasRenderer
+}).addTo(map);
+
 
 
 const ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ5MDQ0MzIwZTY4NTQxNWFiMWUxM2QwYWI3ZjQ1NTMzIiwiaCI6Im11cm11cjY0In0="; 
 
-// =======================
-// Helper Functions
-// =======================
 function metersBetween(a, b) {
   const R = 6371000;
   const dLat = (b[0] - a[0]) * Math.PI / 180;
@@ -129,10 +131,10 @@ async function handlePosition(position) {
   const lng = position.coords.longitude;
   const newPoint = [lat, lng];
 
-  if (position.coords.accuracy > mode.accuracyLimit) {
-    console.log("Blocked by accuracy filter:", position.coords.accuracy);
-    return;
-  }
+  // if (position.coords.accuracy > mode.accuracyLimit) {
+  //   console.log("Blocked by accuracy filter:", position.coords.accuracy);
+  //   return;
+  // }
 
   if (!marker) {
     marker = L.marker(newPoint).addTo(map);
@@ -168,19 +170,21 @@ async function handlePosition(position) {
   lngEl.textContent = newPoint[1].toFixed(6);
 }
 
-// =======================
-// Start Tracking
-// =======================
 startBtn.onclick = () => {
-  lastRouteTime = 0;
+
+  if (isTracking) return;
 
   if (!navigator.geolocation) {
-    alert("Geolocation is not supported on this device");
+    alert("Geolocation not supported");
     return;
   }
 
+  startBtn.disabled = true;
+
   navigator.geolocation.getCurrentPosition(
+
     (position) => {
+
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const currentPoint = [lat, lng];
@@ -199,31 +203,86 @@ startBtn.onclick = () => {
 
       isTracking = true;
 
+      stopBtn.disabled = false;
+
       watchId = navigator.geolocation.watchPosition(
         handlePosition,
         (err) => console.log("GPS Error:", err),
         {
           enableHighAccuracy: true,
-          maximumAge: 2000,
+          maximumAge: 0,
           timeout: 10000
         }
       );
+
     },
-    console.error,
+
+    (err) => {
+      console.log(err);
+      startBtn.disabled = false;
+    },
+
     { enableHighAccuracy: true }
   );
 };
 
-// =======================
-// Stop Tracking
-// =======================
+
 stopBtn.onclick = () => {
+
+  if (!isTracking) return;
+
   isTracking = false;
   animationToken++;
-  lastRouteTime = 0;
 
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
   }
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
 };
+
+downloadBtn.onclick = () => {
+  const latlngs = polyline.getLatLngs();
+  if (latlngs.length === 0) {
+    alert("No route tracked yet!");
+    return;
+  }
+
+  const mapWindow = window.open("", "_blank");
+  mapWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Tracked Route Map</title>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+      <style>
+        #map { height: 100vh; width: 100vw; margin: 0; padding: 0; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+      <script>
+        const map = L.map('map').fitBounds(${JSON.stringify(latlngs)});
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(map);
+
+        const polyline = L.polyline(${JSON.stringify(latlngs)}, {
+          color: 'blue',
+          weight: 4
+        }).addTo(map);
+
+        // Optional: add marker at start and end
+        L.marker(${JSON.stringify(latlngs[0])}).addTo(map).bindPopup("Start").openPopup();
+        L.marker(${JSON.stringify(latlngs[latlngs.length - 1])}).addTo(map).bindPopup("End");
+      </script>
+    </body>
+    </html>
+  `);
+};
+
+
+stopBtn.disabled = true;

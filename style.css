@@ -58,10 +58,6 @@ button {
     color: white;
 }
 
-.stop:hover {
-    background: #da3b2f;
-}
-
 .coords {
     display: flex;
     justify-content: space-around;
@@ -94,4 +90,23 @@ button {
     border-radius: 8px;
     border: 1px solid #ccc;
     font-size: 15px;
+}
+
+#downloadBtn {
+    background-color: #2196F3;
+    color: white;
+}
+
+#downloadBtn:hover {
+    background-color: #1976D2;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+button:disabled:hover {
+    background: inherit;
 }
